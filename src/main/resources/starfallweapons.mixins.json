@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "com.jonas.starfallweapons.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "client.GuiGraphicsTooltipMixin",
+    "client.KeyboardHandlerTooltipMixin",
+    "client.MouseHandlerTooltipMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "minVersion": "0.8.4"
+}
