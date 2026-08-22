@@ -18,6 +18,47 @@ import net.minecraft.world.item.ItemStack;
  */
 public final class WeaponRegistry {
 	private static final Map<ResourceLocation, WeaponDefinition> DEFINITIONS = new HashMap<>();
+	public static final WeaponDefinition TEST_SWORD_DEFINITION = new WeaponDefinition(
+			ResourceLocation.fromNamespaceAndPath(StarfallWeapons.MOD_ID, "test_sword"),
+			WeaponRarity.RARE,
+			10.0F,
+			"Starfall Sword",
+			List.of(
+					new WeaponPassive(
+							ResourceLocation.fromNamespaceAndPath(StarfallWeapons.MOD_ID, "star_energy"),
+							"Star Energy",
+							"While held, the blade absorbs ambient cosmic energy and hums with a faint celestial glow.",
+							ResourceLocation.fromNamespaceAndPath(StarfallWeapons.MOD_ID, "textures/screens/starfall_skill_test.png")),
+					new WeaponPassive(
+							ResourceLocation.fromNamespaceAndPath(StarfallWeapons.MOD_ID, "nova_guard"),
+							"Nova Guard",
+							"Passive placeholder: nearby enemies feel the pressure of the sword's unstable starfire field.",
+							ResourceLocation.fromNamespaceAndPath(StarfallWeapons.MOD_ID, "textures/screens/starfall_skill_test_2.png"))),
+			List.of(
+					new WeaponSkill(
+							ResourceLocation.fromNamespaceAndPath(StarfallWeapons.MOD_ID, "star_slash"),
+							"Star Slash",
+							"Primary ability placeholder: left click unleashes a fast arc of stellar force.",
+							ResourceLocation.fromNamespaceAndPath(StarfallWeapons.MOD_ID, "textures/screens/starfall_skill_test.png")),
+					new WeaponSkill(
+							ResourceLocation.fromNamespaceAndPath(StarfallWeapons.MOD_ID, "meteor_impact"),
+							"Meteor Impact",
+							"Secondary ability placeholder: shift + right click calls a blazing impact from the sky.",
+							ResourceLocation.fromNamespaceAndPath(StarfallWeapons.MOD_ID, "textures/screens/starfall_skill_test_2.png"))),
+			"Celestial Collapse");
+	public static final WeaponDefinition LAST_FERRYMAN_DEFINITION = new WeaponDefinition(
+			ResourceLocation.fromNamespaceAndPath(StarfallWeapons.MOD_ID, "last_ferryman"),
+			WeaponRarity.MYTHIC,
+			7.5F,
+			"A soulbound oarblade that ferries the fallen across still waters.",
+			List.of(),
+			List.of(
+					new WeaponSkill(
+							ResourceLocation.fromNamespaceAndPath(StarfallWeapons.MOD_ID, "departure"),
+							"Departure",
+							"Release a ferry wave in a 15-block radius, damaging and briefly stunning all enemies once.",
+							ResourceLocation.fromNamespaceAndPath(StarfallWeapons.MOD_ID, "textures/screens/ferryman_first_skill_icon.png"))),
+			"Those who hear the bell have already crossed.");
 	private static boolean bootstrapped;
 
 	private WeaponRegistry() {
@@ -29,29 +70,8 @@ public final class WeaponRegistry {
 			return;
 		}
 		bootstrapped = true;
-
-		register(new WeaponDefinition(
-				ResourceLocation.fromNamespaceAndPath(StarfallWeapons.MOD_ID, "test_sword"),
-				WeaponRarity.RARE,
-				7.0F,
-				"A prototype blade that draws power from distant stars.",
-				List.of(new WeaponPassive(
-						ResourceLocation.fromNamespaceAndPath(StarfallWeapons.MOD_ID, "star_energy"),
-						"Star Energy",
-						"Every strike resonates with stored stellar energy.",
-						ResourceLocation.fromNamespaceAndPath(StarfallWeapons.MOD_ID, "textures/screens/starfall_skill_test.png"))),
-				List.of(
-						new WeaponSkill(
-								ResourceLocation.fromNamespaceAndPath(StarfallWeapons.MOD_ID, "star_slash"),
-								"Star Slash",
-								"A fast slash infused with stellar energy.",
-								ResourceLocation.fromNamespaceAndPath(StarfallWeapons.MOD_ID, "textures/screens/starfall_skill_test.png")),
-						new WeaponSkill(
-								ResourceLocation.fromNamespaceAndPath(StarfallWeapons.MOD_ID, "meteor_impact"),
-								"Meteor Impact",
-								"Call down a meteor at the targeted location.",
-								ResourceLocation.fromNamespaceAndPath(StarfallWeapons.MOD_ID, "textures/screens/starfall_skill_test_2.png"))),
-				"Celestial Collapse"));
+		register(TEST_SWORD_DEFINITION);
+		register(LAST_FERRYMAN_DEFINITION);
 	}
 
 	/** Adds one definition and rejects duplicate item ids during development. */

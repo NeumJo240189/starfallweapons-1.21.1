@@ -14,8 +14,11 @@ public final class ModCreativeTabs {
 	public static final DeferredHolder<CreativeModeTab, CreativeModeTab> STARFALL_WEAPONS = REGISTRY.register("weapons",
 			() -> CreativeModeTab.builder()
 					.title(Component.translatable("itemGroup.starfallweapons.weapons"))
-					.icon(() -> ModItems.TEST_SWORD.get().getDefaultInstance())
-					.displayItems((parameters, output) -> output.accept(ModItems.TEST_SWORD.get()))
+					.icon(() -> ModItems.LAST_FERRYMAN.get().getDefaultInstance())
+					.displayItems((parameters, output) -> {
+						output.accept(ModItems.LAST_FERRYMAN.get());
+						output.accept(ModItems.TEST_SWORD.get());
+					})
 					.build());
 
 	private ModCreativeTabs() {

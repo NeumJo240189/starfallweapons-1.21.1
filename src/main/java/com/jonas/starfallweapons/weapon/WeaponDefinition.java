@@ -27,6 +27,7 @@ public record WeaponDefinition(
 		skills = List.copyOf(skills);
 		Objects.requireNonNull(ultimate, "ultimate");
 
+
 		if (damage < 0.0F) {
 			throw new IllegalArgumentException("damage cannot be negative");
 		}

@@ -3,154 +3,366 @@ package com.jonas.starfallweapons.client.tooltip;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.mojang.math.Axis;
 import com.jonas.starfallweapons.weapon.WeaponDefinition;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.item.ItemStack;
 
-/** Renders the compact Starfall information panel for registered weapon items. */
+/** Premium, responsive tooltip renderer that keeps all content inside the panel boundaries. */
 public final class WeaponTooltipRenderer {
-	private static final int WIDTH = 220;
-	private static final int PADDING = 7;
-	private static final int SKILL_ICON_SIZE = 18;
-	private static final int BACKGROUND = 0xF0141024;
-	private static final int BORDER = 0xFF62518C;
-	private static final int TEXT = 0xFFF3EFFA;
-	private static final int MUTED_TEXT = 0xFFBBB2CD;
-	private static final int COSMIC_PURPLE = 0xFFA56CFF;
-	private static final int COSMIC_LAVENDER = 0xFFE4D7FF;
+	private static final int MIN_WIDTH = 180;
+	private static final int MAX_WIDTH = 320;
+	private static final int OUTER_PADDING = 10;
+	private static final int ICON_SIZE = 18;
+	private static final int ICON_SPACING = 4;
+	private static final int DEFAULT_BORDER = 0xFF252936;
+	private static final int DEFAULT_BACKGROUND = 0xF008090D;
+	private static final int DEFAULT_PRIMARY = 0xFFF2F4F7;
+	private static final int DEFAULT_SECONDARY = 0xFFA7ADB8;
+	private static final int DEFAULT_DIVIDER = 0xFF303541;
+	private static final int SHADOW = 0x33000000;
+	private static final String CONTROLS_TEXT = "Shift: switch  •  Mouse wheel: scroll";
+
+	private static final int FERRYMAN_BACKGROUND = 0xF004323F;
+	private static final int FERRYMAN_BORDER = 0xFF077E7A;
+	private static final int FERRYMAN_PRIMARY = 0xFFD9FCCB;
+	private static final int FERRYMAN_SECONDARY = 0xFFBFEFD1;
+	private static final int FERRYMAN_DIVIDER = 0xCC077E7A;
+	private static final int FERRYMAN_ACCENT = 0xFF0BBD8B;
 
 	private WeaponTooltipRenderer() {
 	}
 
 	public static void render(GuiGraphics graphics, Font font, ItemStack stack, WeaponDefinition weapon, WeaponTooltipPage page, int mouseX, int mouseY) {
-		List<String> bodyLines = wrapLines(font, page.lines());
-		int height = PADDING * 2 + font.lineHeight * (bodyLines.size() + 4) + SKILL_ICON_SIZE + 26;
+		TooltipTheme theme = resolveTheme(weapon);
+		int accentColor = theme.accentColor();
+		String weaponName = stack.getHoverName().getString();
+		String rarityLabel = weapon.rarity().name() + " WEAPON";
+		List<String> rawStats = List.of(
+				"⚔  " + weapon.damage() + " Attack Damage",
+				"✦  " + weapon.rarity().name() + " Weapon",
+				"◆  " + weapon.description());
+		Layout layout = buildLayout(font, weaponName, rarityLabel, rawStats, "ABILITIES", page.title(), page.lines(), page.iconTextures().size());
+
 		int screenWidth = Minecraft.getInstance().getWindow().getGuiScaledWidth();
 		int screenHeight = Minecraft.getInstance().getWindow().getGuiScaledHeight();
-		int x = Math.min(mouseX + 12, screenWidth - WIDTH - 4);
-		int y = Math.min(mouseY - 12, screenHeight - height - 4);
+		int x = Math.min(mouseX + 12, screenWidth - layout.panelWidth() - 6);
+		int y = Math.min(mouseY - 10, screenHeight - layout.panelHeight() - 6);
 		x = Math.max(4, x);
 		y = Math.max(4, y);
+		float time = net.minecraft.Util.getMillis() / 1000.0F;
+		float sway = (float) Math.sin(time * 1.2F) * 0.7F;
+		float hoverScale = 1.0F + 0.008F * (float) Math.sin(time * 1.6F);
 
 		graphics.pose().pushPose();
-		graphics.pose().translate(0.0F, 0.0F, 400.0F);
-		float time = net.minecraft.Util.getMillis() / 1000.0F;
-		float sway = (float) Math.sin(time * 1.7F) * 0.55F;
-		graphics.pose().translate(x + WIDTH / 2.0F, y + height / 2.0F, 0.0F);
-		graphics.pose().mulPose(Axis.ZP.rotationDegrees(sway));
-		graphics.pose().translate(-x - WIDTH / 2.0F, -y - height / 2.0F, 0.0F);
-		float appearance = smoothStep(TooltipPageState.appearanceProgress());
-		graphics.fill(x - 1, y - 1, x + WIDTH + 1, y + height + 1, withAlpha(BORDER, 150 + (int) (105 * appearance)));
-		graphics.fill(x, y, x + WIDTH, y + height, withAlpha(BACKGROUND, 180 + (int) (60 * appearance)));
-		drawCosmicParticles(graphics, x, y, WIDTH, height, time, appearance);
+		graphics.pose().translate(0.0F, 0.0F, 450.0F);
+		graphics.pose().translate(x + layout.panelWidth() / 2.0F, y + layout.panelHeight() / 2.0F, 0.0F);
+		graphics.pose().scale(hoverScale, hoverScale, 1.0F);
+		graphics.pose().mulPose(com.mojang.math.Axis.ZP.rotationDegrees(sway));
+		graphics.pose().translate(-x - layout.panelWidth() / 2.0F, -y - layout.panelHeight() / 2.0F, 0.0F);
 
-		int textX = x + PADDING;
-		int textY = y + PADDING;
-		drawShimmeringName(graphics, font, stack.getHoverName().getString(), textX, textY, time);
-		textY += font.lineHeight + 2;
-		graphics.fill(textX, textY - 1, x + WIDTH - PADDING, textY, withAlpha(COSMIC_PURPLE, 150));
-		graphics.drawString(font, "Damage: " + weapon.damage(), textX, textY, TEXT, false);
-		textY += font.lineHeight + 4;
-		textY = drawAbilityIcons(graphics, page, weapon.rarity().color(), textX, textY);
-		graphics.drawString(font, page.title(), textX, textY, TEXT, false);
-		textY += font.lineHeight + 2;
+		graphics.fill(x + 2, y + 2, x + layout.panelWidth() - 2, y + layout.panelHeight() - 2, withAlpha(SHADOW, 120));
+		graphics.fill(x, y, x + layout.panelWidth(), y + layout.panelHeight(), withAlpha(theme.backgroundColor(), 215));
+		graphics.fill(x - 1, y - 1, x + layout.panelWidth() + 1, y, withAlpha(accentColor, 165));
+		graphics.fill(x - 1, y + layout.panelHeight(), x + layout.panelWidth() + 1, y + layout.panelHeight() + 1, withAlpha(accentColor, 165));
+		graphics.fill(x - 1, y, x, y + layout.panelHeight(), withAlpha(accentColor, 165));
+		graphics.fill(x + layout.panelWidth(), y, x + layout.panelWidth() + 1, y + layout.panelHeight(), withAlpha(accentColor, 165));
+		graphics.fill(x + 1, y + 1, x + layout.panelWidth() - 1, y + layout.panelHeight() - 1, withAlpha(theme.borderColor(), 170));
 
-		for (String line : bodyLines) {
-			graphics.drawString(font, line, textX, textY, MUTED_TEXT, false);
-			textY += font.lineHeight;
+		int currentY = y + OUTER_PADDING;
+		int contentX = x + OUTER_PADDING;
+		for (String line : layout.nameLines()) {
+			graphics.drawString(font, line, contentX, currentY, theme.primaryTextColor(), false);
+			currentY += font.lineHeight;
+		}
+		currentY += 2;
+		for (String line : layout.rarityLines()) {
+			graphics.drawString(font, line, contentX, currentY, withAlpha(accentColor, 230), false);
+			currentY += font.lineHeight;
+		}
+		currentY += 8;
+		for (String statLine : layout.statLines()) {
+			graphics.drawString(font, statLine, contentX, currentY, theme.secondaryTextColor(), false);
+			currentY += font.lineHeight + 2;
+		}
+		if (!layout.statLines().isEmpty()) {
+			currentY += 2;
+		}
+		graphics.fill(contentX, currentY, contentX + layout.contentWidth(), currentY + 1, withAlpha(theme.dividerColor(), 220));
+		currentY += 9;
+		for (String line : layout.sectionHeaderLines()) {
+			graphics.drawString(font, line, contentX, currentY, withAlpha(theme.primaryTextColor(), 220), false);
+			currentY += font.lineHeight;
+		}
+		currentY += 4;
+		currentY = drawAbilityIcons(graphics, page, accentColor, contentX, currentY, layout.contentWidth(), layout.iconsPerRow());
+		float focusPulse = 0.5F + 0.5F * (float) Math.sin(time * 3.2F);
+		int abilityTitleStartY = currentY;
+		int abilityTitleHeight = layout.abilityTitleLines().size() * font.lineHeight;
+		if (abilityTitleHeight > 0) {
+			graphics.fill(contentX - 2, abilityTitleStartY - 1, contentX + layout.contentWidth(), abilityTitleStartY + abilityTitleHeight + 1,
+					withAlpha(accentColor, 22 + (int) (20 * focusPulse)));
+		}
+		for (String line : layout.abilityTitleLines()) {
+			graphics.drawString(font, line, contentX, currentY, withAlpha(accentColor, 230 + (int) (25 * focusPulse)), false);
+			currentY += font.lineHeight;
+		}
+		if (abilityTitleHeight > 0) {
+			int underlineWidth = Math.min(layout.contentWidth(), 42 + (int) (64 * focusPulse));
+			graphics.fill(contentX, currentY + 1, contentX + underlineWidth, currentY + 2, withAlpha(accentColor, 175));
+		}
+		if (!layout.bodyLines().isEmpty()) {
+			currentY += 2;
+		}
+		for (int i = 0; i < layout.bodyLines().size(); i++) {
+			String line = layout.bodyLines().get(i);
+			int bodyColor = i == 0 ? withAlpha(theme.secondaryTextColor(), 215 + (int) (25 * focusPulse)) : theme.secondaryTextColor();
+			graphics.drawString(font, line, contentX, currentY, bodyColor, false);
+			currentY += font.lineHeight;
+		}
+		currentY += 5;
+		graphics.fill(contentX, currentY, contentX + layout.contentWidth(), currentY + 1, withAlpha(theme.dividerColor(), 160));
+		currentY += 5;
+		for (String line : layout.controlsLines()) {
+			graphics.drawString(font, line, contentX, currentY, withAlpha(theme.secondaryTextColor(), 220), false);
+			currentY += font.lineHeight;
 		}
 
-		String controls = "Shift: Skills/Passives  •  Mouse Wheel: Ability";
-		graphics.drawString(font, controls, textX, y + height - PADDING - font.lineHeight, withAlpha(COSMIC_LAVENDER, 220), false);
-
+		graphics.flush();
 		graphics.pose().popPose();
 	}
 
-	/** Draws the active ability list and a subtle pulse around the selected icon. */
-	private static int drawAbilityIcons(GuiGraphics graphics, WeaponTooltipPage page, int rarityColor, int x, int y) {
-		int iconX = x;
-		for (int index = 0; index < page.iconTextures().size(); index++) {
-			if (iconX + SKILL_ICON_SIZE > x + WIDTH - PADDING * 2) {
+	private static Layout buildLayout(
+			Font font,
+			String weaponName,
+			String rarityLabel,
+			List<String> rawStats,
+			String sectionHeader,
+			String abilityTitle,
+			List<String> bodySource,
+			int iconCount) {
+		int minContentWidth = MIN_WIDTH - OUTER_PADDING * 2;
+		int maxContentWidth = MAX_WIDTH - OUTER_PADDING * 2;
+		int contentWidth = determineInitialContentWidth(font, minContentWidth, maxContentWidth, weaponName, rarityLabel, rawStats, sectionHeader, abilityTitle, bodySource);
+
+		for (int i = 0; i < 3; i++) {
+			List<String> nameLines = wrapText(font, weaponName, contentWidth);
+			List<String> rarityLines = wrapText(font, rarityLabel, contentWidth);
+			List<String> statLines = flattenWrappedLines(font, rawStats, contentWidth);
+			List<String> sectionHeaderLines = wrapText(font, sectionHeader, contentWidth);
+			List<String> abilityTitleLines = wrapText(font, abilityTitle, contentWidth);
+			List<String> bodyLines = flattenWrappedLines(font, bodySource, contentWidth);
+			List<String> controlsLines = wrapText(font, CONTROLS_TEXT, contentWidth);
+
+			int requiredWidth = measureMaxWidth(font, nameLines, rarityLines, statLines, sectionHeaderLines, abilityTitleLines, bodyLines, controlsLines);
+			int adjustedWidth = Math.clamp(Math.max(requiredWidth, minContentWidth), minContentWidth, maxContentWidth);
+			if (adjustedWidth == contentWidth) {
 				break;
 			}
-			boolean selected = index == page.selectedIconIndex();
-			float pulse = selected ? 0.5F + 0.5F * (float) Math.sin(net.minecraft.Util.getMillis() / 110.0D) : 0.0F;
-			int borderColor = selected ? withAlpha(rarityColor, 185 + (int) (70 * pulse)) : 0xFF403957;
-			int inset = selected ? 2 : 1;
-			if (selected) {
-				graphics.fill(iconX - 4, y - 4, iconX + SKILL_ICON_SIZE + 4, y + SKILL_ICON_SIZE + 4, withAlpha(COSMIC_PURPLE, 35 + (int) (55 * pulse)));
-			}
-			graphics.fill(iconX - inset, y - inset, iconX + SKILL_ICON_SIZE + inset, y + SKILL_ICON_SIZE + inset, borderColor);
-			graphics.pose().pushPose();
-			float scale = selected ? 1.0F + 0.06F * pulse : 1.0F;
-			graphics.pose().translate(iconX + SKILL_ICON_SIZE / 2.0F, y + SKILL_ICON_SIZE / 2.0F, 0.0F);
-			graphics.pose().scale(scale, scale, 1.0F);
-			graphics.pose().translate(-iconX - SKILL_ICON_SIZE / 2.0F, -y - SKILL_ICON_SIZE / 2.0F, 0.0F);
-			graphics.blit(page.iconTextures().get(index), iconX, y, 0, 0.0F, 0.0F, SKILL_ICON_SIZE, SKILL_ICON_SIZE, SKILL_ICON_SIZE, SKILL_ICON_SIZE);
-			graphics.pose().popPose();
-			iconX += SKILL_ICON_SIZE + 3;
+			contentWidth = adjustedWidth;
 		}
-		return y + SKILL_ICON_SIZE + 4;
+
+		List<String> nameLines = wrapText(font, weaponName, contentWidth);
+		List<String> rarityLines = wrapText(font, rarityLabel, contentWidth);
+		List<String> statLines = flattenWrappedLines(font, rawStats, contentWidth);
+		List<String> sectionHeaderLines = wrapText(font, sectionHeader, contentWidth);
+		List<String> abilityTitleLines = wrapText(font, abilityTitle, contentWidth);
+		List<String> bodyLines = flattenWrappedLines(font, bodySource, contentWidth);
+		List<String> controlsLines = wrapText(font, CONTROLS_TEXT, contentWidth);
+		int iconsPerRow = computeIconsPerRow(iconCount, contentWidth);
+		int iconRows = iconCount == 0 ? 0 : (iconCount + iconsPerRow - 1) / iconsPerRow;
+
+		int totalContentHeight = 0;
+		totalContentHeight += nameLines.size() * font.lineHeight;
+		totalContentHeight += 2;
+		totalContentHeight += rarityLines.size() * font.lineHeight;
+		totalContentHeight += 8;
+		for (int i = 0; i < statLines.size(); i++) {
+			totalContentHeight += font.lineHeight + 2;
+		}
+		if (!statLines.isEmpty()) {
+			totalContentHeight += 2;
+		}
+		totalContentHeight += 1;
+		totalContentHeight += 9;
+		totalContentHeight += sectionHeaderLines.size() * font.lineHeight;
+		totalContentHeight += 4;
+		if (iconRows > 0) {
+			totalContentHeight += iconRows * ICON_SIZE + Math.max(0, iconRows - 1) * ICON_SPACING;
+			totalContentHeight += 4;
+		}
+		totalContentHeight += abilityTitleLines.size() * font.lineHeight;
+		if (!bodyLines.isEmpty()) {
+			totalContentHeight += 2;
+			totalContentHeight += bodyLines.size() * font.lineHeight;
+		}
+		totalContentHeight += 5;
+		totalContentHeight += 1;
+		totalContentHeight += 5;
+		totalContentHeight += controlsLines.size() * font.lineHeight;
+
+		int panelWidth = contentWidth + OUTER_PADDING * 2;
+		int panelHeight = totalContentHeight + OUTER_PADDING * 2;
+		return new Layout(panelWidth, panelHeight, contentWidth, iconsPerRow, nameLines, rarityLines, statLines, sectionHeaderLines, abilityTitleLines, bodyLines, controlsLines);
+	}
+
+	private static int determineInitialContentWidth(
+			Font font,
+			int minContentWidth,
+			int maxContentWidth,
+			String weaponName,
+			String rarityLabel,
+			List<String> rawStats,
+			String sectionHeader,
+			String abilityTitle,
+			List<String> bodySource) {
+		int width = Math.max(font.width(weaponName), font.width(rarityLabel));
+		width = Math.max(width, font.width(sectionHeader));
+		width = Math.max(width, font.width(abilityTitle));
+		for (String line : rawStats) {
+			width = Math.max(width, font.width(line));
+		}
+		for (String line : bodySource) {
+			width = Math.max(width, font.width(line));
+		}
+		return Math.clamp(width, minContentWidth, maxContentWidth);
+	}
+
+	private static int computeIconsPerRow(int iconCount, int contentWidth) {
+		if (iconCount <= 0) {
+			return 0;
+		}
+		int stride = ICON_SIZE + ICON_SPACING;
+		int perRow = Math.max(1, (contentWidth + ICON_SPACING) / stride);
+		return Math.min(iconCount, perRow);
+	}
+
+	private static int drawAbilityIcons(GuiGraphics graphics, WeaponTooltipPage page, int rarityColor, int x, int y, int contentWidth, int iconsPerRow) {
+		if (page.iconTextures().isEmpty() || iconsPerRow <= 0) {
+			return y;
+		}
+		int iconX = x;
+		int iconY = y;
+		int lastRowIndex = 0;
+		for (int index = 0; index < page.iconTextures().size(); index++) {
+			boolean selected = index == page.selectedIconIndex();
+			float pulse = selected ? 0.5F + 0.5F * (float) Math.sin(net.minecraft.Util.getMillis() / 160.0D) : 0.0F;
+			int borderColor = selected ? withAlpha(rarityColor, 180 + (int) (40 * pulse)) : 0xFF2F3644;
+			float hoverOffset = selected ? (float) Math.sin(net.minecraft.Util.getMillis() / 140.0D + index * 0.35D) * 1.2F : 0.0F;
+			float hoverScale = selected ? 1.0F + 0.04F * pulse : 1.0F;
+			int drawY = iconY + Math.round(hoverOffset);
+			if (selected) {
+				graphics.fill(iconX - 3, drawY - 3, iconX + ICON_SIZE + 3, drawY + ICON_SIZE + 3, withAlpha(rarityColor, 30 + (int) (35 * pulse)));
+			}
+			graphics.fill(iconX - 1, drawY - 1, iconX + ICON_SIZE + 1, drawY + ICON_SIZE + 1, withAlpha(0xFF161A22, 150));
+			graphics.fill(iconX, drawY, iconX + ICON_SIZE, drawY + ICON_SIZE, borderColor);
+			if (selected) {
+				graphics.pose().pushPose();
+				graphics.pose().translate(iconX + ICON_SIZE / 2.0F, drawY + ICON_SIZE / 2.0F, 0.0F);
+				graphics.pose().scale(hoverScale, hoverScale, 1.0F);
+				graphics.pose().translate(-iconX - ICON_SIZE / 2.0F, -drawY - ICON_SIZE / 2.0F, 0.0F);
+				graphics.blit(page.iconTextures().get(index), iconX, drawY, 0, 0.0F, 0.0F, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE);
+				graphics.pose().popPose();
+			} else {
+				graphics.blit(page.iconTextures().get(index), iconX, drawY, 0, 0.0F, 0.0F, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE);
+			}
+
+			lastRowIndex = index / iconsPerRow;
+			if ((index + 1) % iconsPerRow == 0) {
+				iconX = x;
+				iconY += ICON_SIZE + ICON_SPACING;
+				continue;
+			}
+			int nextX = iconX + ICON_SIZE + ICON_SPACING;
+			if (nextX + ICON_SIZE <= x + contentWidth) {
+				iconX = nextX;
+			} else {
+				iconX = x;
+				iconY += ICON_SIZE + ICON_SPACING;
+			}
+		}
+		return y + (lastRowIndex + 1) * ICON_SIZE + lastRowIndex * ICON_SPACING + 4;
+	}
+
+	private static List<String> flattenWrappedLines(Font font, List<String> sourceLines, int maxAllowedWidth) {
+		List<String> wrapped = new ArrayList<>();
+		for (String sourceLine : sourceLines) {
+			wrapped.addAll(wrapText(font, sourceLine, maxAllowedWidth));
+		}
+		return wrapped;
+	}
+
+	private static List<String> wrapText(Font font, String text, int maxAllowedWidth) {
+		if (text == null || text.isBlank()) {
+			return List.of("");
+		}
+		List<String> wrapped = new ArrayList<>();
+		int maxWidth = Math.max(40, maxAllowedWidth);
+		String remainder = text.strip();
+		while (!remainder.isEmpty()) {
+			String candidate = font.plainSubstrByWidth(remainder, maxWidth);
+			if (candidate.isEmpty()) {
+				break;
+			}
+			if (candidate.length() < remainder.length()) {
+				int splitIndex = candidate.lastIndexOf(' ');
+				if (splitIndex > 0) {
+					candidate = candidate.substring(0, splitIndex);
+				}
+			}
+			candidate = candidate.stripTrailing();
+			if (candidate.isEmpty()) {
+				candidate = font.plainSubstrByWidth(remainder, maxWidth);
+			}
+			wrapped.add(candidate);
+			remainder = remainder.substring(candidate.length()).stripLeading();
+		}
+		return wrapped.isEmpty() ? List.of(text.strip()) : wrapped;
+	}
+
+	@SafeVarargs
+	private static int measureMaxWidth(Font font, List<String>... groups) {
+		int max = 0;
+		for (List<String> group : groups) {
+			for (String line : group) {
+				max = Math.max(max, font.width(line));
+			}
+		}
+		return max;
 	}
 
 	private static int withAlpha(int color, int alpha) {
 		return (color & 0x00FFFFFF) | (Math.clamp(alpha, 0, 255) << 24);
 	}
 
-	private static float smoothStep(float value) {
-		return value * value * (3.0F - 2.0F * value);
-	}
-
-	private static void drawShimmeringName(GuiGraphics graphics, Font font, String name, int x, int y, float time) {
-		int cursor = x;
-		for (int index = 0; index < name.length(); index++) {
-			float phase = 0.5F + 0.5F * (float) Math.sin(time * 3.0F + index * 0.7F);
-			int color = lerpColor(COSMIC_LAVENDER, 0xFFFFFFFF, phase);
-			int offsetY = (int) Math.round(Math.sin(time * 2.2F + index * 0.55F) * 0.55F);
-			String character = String.valueOf(name.charAt(index));
-			graphics.drawString(font, character, cursor, y + offsetY, color, false);
-			cursor += font.width(character);
+	private static TooltipTheme resolveTheme(WeaponDefinition weapon) {
+		if ("last_ferryman".equals(weapon.itemId().getPath())) {
+			return new TooltipTheme(FERRYMAN_BACKGROUND, FERRYMAN_BORDER, FERRYMAN_PRIMARY, FERRYMAN_SECONDARY, FERRYMAN_DIVIDER, FERRYMAN_ACCENT);
 		}
+		return new TooltipTheme(DEFAULT_BACKGROUND, DEFAULT_BORDER, DEFAULT_PRIMARY, DEFAULT_SECONDARY, DEFAULT_DIVIDER, weapon.rarity().color());
 	}
 
-	private static void drawCosmicParticles(GuiGraphics graphics, int x, int y, int width, int height, float time, float appearance) {
-		for (int index = 0; index < 14; index++) {
-			float horizontal = (index * 47 % width) + 3.0F * (float) Math.sin(time * (0.8F + index * 0.05F) + index);
-			float vertical = (index * 29 % height) + 2.0F * (float) Math.cos(time * (0.9F + index * 0.04F) + index * 2.0F);
-			int alpha = (int) ((35 + 40 * (0.5F + 0.5F * Math.sin(time * 2.0F + index))) * appearance);
-			int size = index % 4 == 0 ? 2 : 1;
-			graphics.fill(x + (int) horizontal, y + (int) vertical, x + (int) horizontal + size, y + (int) vertical + size, withAlpha(COSMIC_LAVENDER, alpha));
-		}
+	private record TooltipTheme(
+			int backgroundColor,
+			int borderColor,
+			int primaryTextColor,
+			int secondaryTextColor,
+			int dividerColor,
+			int accentColor) {
 	}
 
-	private static int lerpColor(int from, int to, float progress) {
-		int red = (int) (((from >> 16) & 0xFF) + (((to >> 16) & 0xFF) - ((from >> 16) & 0xFF)) * progress);
-		int green = (int) (((from >> 8) & 0xFF) + (((to >> 8) & 0xFF) - ((from >> 8) & 0xFF)) * progress);
-		int blue = (int) ((from & 0xFF) + ((to & 0xFF) - (from & 0xFF)) * progress);
-		return 0xFF000000 | (red << 16) | (green << 8) | blue;
-	}
-
-	private static List<String> wrapLines(Font font, List<String> lines) {
-		List<String> wrapped = new ArrayList<>();
-		int maxWidth = WIDTH - PADDING * 2;
-		for (String line : lines) {
-				if (line.isEmpty()) {
-					wrapped.add("");
-					continue;
-				}
-				String remainder = line;
-				while (!remainder.isEmpty()) {
-					String part = font.plainSubstrByWidth(remainder, maxWidth);
-					if (part.isEmpty()) {
-						break;
-					}
-					wrapped.add(part);
-					remainder = remainder.substring(part.length()).stripLeading();
-				}
-		}
-		return wrapped;
+	private record Layout(
+			int panelWidth,
+			int panelHeight,
+			int contentWidth,
+			int iconsPerRow,
+			List<String> nameLines,
+			List<String> rarityLines,
+			List<String> statLines,
+			List<String> sectionHeaderLines,
+			List<String> abilityTitleLines,
+			List<String> bodyLines,
+			List<String> controlsLines) {
 	}
 }
