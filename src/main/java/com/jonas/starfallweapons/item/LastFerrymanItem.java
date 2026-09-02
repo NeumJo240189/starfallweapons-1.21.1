@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.jonas.starfallweapons.network.FerrymanSlashPayload;
 import com.jonas.starfallweapons.weapon.WeaponDefinition;
 import com.jonas.starfallweapons.weapon.WeaponRarity;
 import net.minecraft.core.particles.DustParticleOptions;
@@ -26,6 +27,7 @@ import net.minecraft.world.item.Tiers;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.joml.Vector3f;
 
 /** Ferryman weapon with custom M1 slash and the Departure radial skill. */
@@ -114,7 +116,7 @@ public class LastFerrymanItem extends SwordItem {
 		}
 
 		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 0.85F, 0.75F);
-		spawnSlashParticles(level, player, look);
+		spawnPhotonSlash(player, origin, look);
 	}
 
 	private void castDeparture(ServerLevel level, Player player) {
@@ -162,17 +164,13 @@ public class LastFerrymanItem extends SwordItem {
 		target.hurtMarked = true;
 	}
 
-	private static void spawnSlashParticles(ServerLevel level, Player player, Vec3 look) {
-		double yaw = Math.atan2(look.z, look.x);
-		for (int i = 0; i <= 24; i++) {
-			double spread = Math.toRadians(-56.0D + (112.0D * i / 24.0D));
-			double distance = 1.0D + (M1_RANGE - 1.0D) * (i / 24.0D);
-			double x = player.getX() + Math.cos(yaw + spread) * distance;
-			double z = player.getZ() + Math.sin(yaw + spread) * distance;
-			double y = player.getY() + 1.0D + 0.15D * Math.sin(i * 0.7D);
-			level.sendParticles(new DustParticleOptions(i % 2 == 0 ? COLOR_MINT : COLOR_TEAL, 1.1F), x, y, z, 1, 0.01D, 0.01D, 0.01D, 0.0D);
-			level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, x, y + 0.05D, z, 1, 0.01D, 0.01D, 0.01D, 0.0D);
-		}
+	/** Replaces the old vanilla M1 particle fan with one synchronized Photon effect runtime. */
+	private static void spawnPhotonSlash(Player player, Vec3 eyeOrigin, Vec3 look) {
+		int variation = player.getRandom().nextInt(3);
+		Vec3 effectOrigin = eyeOrigin.add(look.scale(1.8D)).add(0.0D, -0.35D, 0.0D);
+		PacketDistributor.sendToPlayersTrackingEntityAndSelf(player, new FerrymanSlashPayload(
+				(float) effectOrigin.x, (float) effectOrigin.y, (float) effectOrigin.z,
+				player.getXRot(), player.getYRot(), variation));
 	}
 
 	private static void spawnDepartureWave(ServerLevel level, Player player) {

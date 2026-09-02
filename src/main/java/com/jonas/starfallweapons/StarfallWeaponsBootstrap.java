@@ -1,8 +1,10 @@
 package com.jonas.starfallweapons;
 
 import com.jonas.starfallweapons.weapon.WeaponRegistry;
+import com.jonas.starfallweapons.network.StarfallPayloads;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 
 /**
  * Entry point for Starfall's handwritten systems.
@@ -16,6 +18,7 @@ public final class StarfallWeaponsBootstrap {
 	/** Connects handwritten lifecycle listeners to the NeoForge mod event bus. */
 	public static void initialize(IEventBus modEventBus) {
 		modEventBus.addListener(StarfallWeaponsBootstrap::onCommonSetup);
+		modEventBus.addListener(StarfallPayloads::register);
 	}
 
 	public static void onCommonSetup(FMLCommonSetupEvent event) {
